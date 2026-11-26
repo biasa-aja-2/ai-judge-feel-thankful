@@ -83,16 +83,26 @@ def write_entry(path, text):
     return 0
 
 
+def report_problems(problems):
+    """Print every gate failure to stderr and return the failure code."""
+    for problem in problems:
+        print("gate failed: " + problem, file=sys.stderr)
+    return 1
+
+
+def entry_path(out_dir):
+    """Return the path of the entry file inside the output directory."""
+    return os.path.join(out_dir, "entry.txt")
+
+
 def main():
     problems = gate_failures(TEXT)
     if problems:
-        for problem in problems:
-            print("gate failed: " + problem, file=sys.stderr)
-        return 1
+        return report_problems(problems)
 
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
     os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, "entry.txt")
+    path = entry_path(out_dir)
     return write_entry(path, TEXT)
 
 
