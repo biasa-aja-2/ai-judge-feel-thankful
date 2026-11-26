@@ -37,6 +37,14 @@ TEXT = (
 MAX_CHARS = 1000
 
 
+def has_control_char(text):
+    """True when the text holds a control character (newline/tab allowed)."""
+    for c in text:
+        if ord(c) == 0x7F or (ord(c) < 0x20 and c not in "\n\t"):
+            return True
+    return False
+
+
 def gate_failures(text):
     """Return a list of every gate the text breaks (empty means it passes)."""
     problems = []
@@ -46,13 +54,33 @@ def gate_failures(text):
         problems.append(
             "text is %d characters, over the %d limit" % (len(text), MAX_CHARS)
         )
-    if any(ord(c) < 0x20 and c not in "\n\t" or ord(c) == 0x7F for c in text):
+    if has_control_char(text):
         problems.append("text contains a control character")
     try:
         text.encode("utf-8")
     except UnicodeEncodeError:
         problems.append("text is not valid UTF-8 text")
     return problems
+
+
+def write_entry(path, text):
+    """Write the text and read it back; return 0 only on a byte-exact match."""
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        written = f.read()
+    if written != text:
+        print("read-back mismatch: entry.txt does not hold the text",
+              file=sys.stderr)
+        return 1
+    expected_bytes = len(text.encode("utf-8"))
+    if os.path.getsize(path) != expected_bytes:
+        print("read-back mismatch: entry.txt is %d bytes, expected %d"
+              % (os.path.getsize(path), expected_bytes), file=sys.stderr)
+        return 1
+    print("wrote %s (%d characters, %d bytes)"
+          % (path, len(text), expected_bytes))
+    return 0
 
 
 def main():
@@ -65,22 +93,7 @@ def main():
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        f.write(TEXT)
-    with open(path, "r", encoding="utf-8", newline="") as f:
-        written = f.read()
-    if written != TEXT:
-        print("read-back mismatch: entry.txt does not hold the text",
-              file=sys.stderr)
-        return 1
-    expected_bytes = len(TEXT.encode("utf-8"))
-    if os.path.getsize(path) != expected_bytes:
-        print("read-back mismatch: entry.txt is %d bytes, expected %d"
-              % (os.path.getsize(path), expected_bytes), file=sys.stderr)
-        return 1
-    print("wrote %s (%d characters, %d bytes)"
-          % (path, len(TEXT), expected_bytes))
-    return 0
+    return write_entry(path, TEXT)
 
 
 if __name__ == "__main__":
